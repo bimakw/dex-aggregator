@@ -1,0 +1,25 @@
+package dex
+
+import (
+	"context"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/bimakw/dex-aggregator/internal/domain/entities"
+)
+
+// DEXClient defines the interface for interacting with a DEX
+type DEXClient interface {
+	// GetPairAddress returns the pair address for two tokens
+	GetPairAddress(ctx context.Context, tokenA, tokenB common.Address) (common.Address, error)
+
+	// GetPairByTokens fetches pair data by token addresses
+	GetPairByTokens(ctx context.Context, tokenA, tokenB entities.Token) (*entities.Pair, error)
+
+	// GetAmountOut calculates the output amount for a swap
+	GetAmountOut(ctx context.Context, amountIn *big.Int, tokenIn, tokenOut entities.Token) (*big.Int, error)
+
+	// DEXType returns the type of DEX
+	DEXType() entities.DEXType
+}

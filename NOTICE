@@ -1,0 +1,10 @@
+DEX Price Aggregator
+Copyright (c) 2026 bimakw
+
+This product includes software developed at:
+https://github.com/bimakw/dex-aggregator
+
+Third-party dependencies:
+- go-ethereum (github.com/ethereum/go-ethereum) - LGPLv3
+- chi (github.com/go-chi/chi) - MIT
+- go-redis (github.com/redis/go-redis) - BSD-2-Clause
