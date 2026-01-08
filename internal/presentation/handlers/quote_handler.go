@@ -42,14 +42,26 @@ type QuoteRequest struct {
 
 // QuoteResponse represents a quote response
 type QuoteResponse struct {
-	TokenIn     string              `json:"tokenIn"`
-	TokenOut    string              `json:"tokenOut"`
-	AmountIn    string              `json:"amountIn"`
-	AmountOut   string              `json:"amountOut"`
-	Route       []RouteHop          `json:"route"`
-	PriceImpact string              `json:"priceImpact"`
-	GasEstimate uint64              `json:"gasEstimate"`
-	Sources     map[string]string   `json:"sources"`
+	TokenIn      string            `json:"tokenIn"`
+	TokenOut     string            `json:"tokenOut"`
+	AmountIn     string            `json:"amountIn"`
+	AmountOut    string            `json:"amountOut"`
+	MinAmountOut string            `json:"minAmountOut,omitempty"`
+	SlippageBps  uint64            `json:"slippageBps,omitempty"`
+	Route        []RouteHop        `json:"route"`
+	SplitRoutes  []SplitRouteResp  `json:"splitRoutes,omitempty"`
+	PriceImpact  string            `json:"priceImpact"`
+	PriceWarning string            `json:"priceWarning,omitempty"`
+	GasEstimate  uint64            `json:"gasEstimate"`
+	Sources      map[string]string `json:"sources"`
+}
+
+// SplitRouteResp represents a split route in the response
+type SplitRouteResp struct {
+	DEX        string `json:"dex"`
+	Percentage uint64 `json:"percentage"`
+	AmountIn   string `json:"amountIn"`
+	AmountOut  string `json:"amountOut"`
 }
 
 // RouteHop represents a hop in the route
@@ -73,6 +85,7 @@ func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
 	tokenInAddr := r.URL.Query().Get("tokenIn")
 	tokenOutAddr := r.URL.Query().Get("tokenOut")
 	amountInStr := r.URL.Query().Get("amountIn")
+	slippageStr := r.URL.Query().Get("slippage")
 
 	if tokenInAddr == "" || tokenOutAddr == "" || amountInStr == "" {
 		h.writeError(w, http.StatusBadRequest, "missing_params", "tokenIn, tokenOut, and amountIn are required")
@@ -96,6 +109,17 @@ func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse slippage (optional, in basis points, default 50 = 0.5%)
+	var slippageBps uint64
+	if slippageStr != "" {
+		slippage, ok := new(big.Int).SetString(slippageStr, 10)
+		if !ok || slippage.Sign() < 0 || slippage.Cmp(big.NewInt(10000)) > 0 {
+			h.writeError(w, http.StatusBadRequest, "invalid_slippage", "slippage must be 0-10000 basis points")
+			return
+		}
+		slippageBps = slippage.Uint64()
+	}
+
 	// Look up tokens
 	tokenIn, ok := h.tokenRegistry[common.HexToAddress(tokenInAddr)]
 	if !ok {
@@ -116,8 +140,8 @@ func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get quote
-	quote, err := h.routerService.GetQuote(r.Context(), tokenIn, tokenOut, amountIn)
+	// Get smart quote with slippage protection
+	quote, err := h.routerService.GetSmartQuote(r.Context(), tokenIn, tokenOut, amountIn, slippageBps)
 	if err != nil {
 		h.writeError(w, http.StatusNotFound, "no_route", err.Error())
 		return
@@ -153,15 +177,39 @@ func (h *QuoteHandler) buildQuoteResponse(quote *entities.Quote) QuoteResponse {
 		priceImpactBps = quote.PriceImpact.String()
 	}
 
+	minAmountOut := ""
+	if quote.MinAmountOut != nil {
+		minAmountOut = quote.MinAmountOut.String()
+	}
+
+	// Build split routes response
+	var splitRoutes []SplitRouteResp
+	for _, sr := range quote.SplitRoutes {
+		dexType := ""
+		if sr.Route != nil && len(sr.Route.Hops) > 0 {
+			dexType = string(sr.Route.Hops[0].Pair.DEX)
+		}
+		splitRoutes = append(splitRoutes, SplitRouteResp{
+			DEX:        dexType,
+			Percentage: sr.Percentage,
+			AmountIn:   sr.AmountIn.String(),
+			AmountOut:  sr.AmountOut.String(),
+		})
+	}
+
 	return QuoteResponse{
-		TokenIn:     quote.TokenIn.Address.Hex(),
-		TokenOut:    quote.TokenOut.Address.Hex(),
-		AmountIn:    quote.AmountIn.String(),
-		AmountOut:   quote.AmountOut.String(),
-		Route:       routeHops,
-		PriceImpact: priceImpactBps,
-		GasEstimate: quote.GasEstimate,
-		Sources:     sources,
+		TokenIn:      quote.TokenIn.Address.Hex(),
+		TokenOut:     quote.TokenOut.Address.Hex(),
+		AmountIn:     quote.AmountIn.String(),
+		AmountOut:    quote.AmountOut.String(),
+		MinAmountOut: minAmountOut,
+		SlippageBps:  quote.SlippageBps,
+		Route:        routeHops,
+		SplitRoutes:  splitRoutes,
+		PriceImpact:  priceImpactBps,
+		PriceWarning: quote.PriceWarning,
+		GasEstimate:  quote.GasEstimate,
+		Sources:      sources,
 	}
 }
 

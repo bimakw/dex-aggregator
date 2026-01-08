@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	version = "0.2.0"
+	version = "0.3.0"
 )
 
 func main() {
@@ -57,7 +57,9 @@ func main() {
 	uniswapV2 := dex.NewUniswapV2Client(ethClient)
 	uniswapV3 := dex.NewUniswapV3Client(ethClient)
 	sushiswap := dex.NewSushiswapClient(ethClient)
-	dexClients := []dex.DEXClient{uniswapV2, uniswapV3, sushiswap}
+	curve := dex.NewCurveClient(ethClient)
+	balancer := dex.NewBalancerClient(ethClient)
+	dexClients := []dex.DEXClient{uniswapV2, uniswapV3, sushiswap, curve, balancer}
 
 	// Initialize services
 	priceService := services.NewPriceService(dexClients, cacheClient)

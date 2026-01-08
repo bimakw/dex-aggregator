@@ -13,6 +13,8 @@ const (
 	DEXUniswapV2 DEXType = "uniswap_v2"
 	DEXUniswapV3 DEXType = "uniswap_v3"
 	DEXSushiswap DEXType = "sushiswap"
+	DEXCurve     DEXType = "curve"
+	DEXBalancer  DEXType = "balancer"
 )
 
 // Pair represents a liquidity pair on a DEX
