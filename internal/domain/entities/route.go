@@ -26,14 +26,26 @@ type Route struct {
 
 // Quote represents the result of a price quote request
 type Quote struct {
-	TokenIn     Token              `json:"tokenIn"`
-	TokenOut    Token              `json:"tokenOut"`
-	AmountIn    *big.Int           `json:"amountIn"`
-	AmountOut   *big.Int           `json:"amountOut"`
-	BestRoute   *Route             `json:"bestRoute"`
-	PriceImpact *big.Int           `json:"priceImpact"`
-	GasEstimate uint64             `json:"gasEstimate"`
-	Sources     map[DEXType]string `json:"sources"` // Price quotes from each DEX
+	TokenIn      Token              `json:"tokenIn"`
+	TokenOut     Token              `json:"tokenOut"`
+	AmountIn     *big.Int           `json:"amountIn"`
+	AmountOut    *big.Int           `json:"amountOut"`
+	BestRoute    *Route             `json:"bestRoute"`
+	SplitRoutes  []SplitRoute       `json:"splitRoutes,omitempty"` // Split order routes
+	PriceImpact  *big.Int           `json:"priceImpact"`
+	MinAmountOut *big.Int           `json:"minAmountOut,omitempty"` // After slippage
+	SlippageBps  uint64             `json:"slippageBps,omitempty"`  // Slippage in basis points
+	GasEstimate  uint64             `json:"gasEstimate"`
+	Sources      map[DEXType]string `json:"sources"` // Price quotes from each DEX
+	PriceWarning string             `json:"priceWarning,omitempty"`
+}
+
+// SplitRoute represents a portion of an order routed through a specific DEX
+type SplitRoute struct {
+	Route      *Route   `json:"route"`
+	Percentage uint64   `json:"percentage"` // Percentage of total order (0-100)
+	AmountIn   *big.Int `json:"amountIn"`
+	AmountOut  *big.Int `json:"amountOut"`
 }
 
 // CalculateAmountOut calculates the final output amount for the entire route

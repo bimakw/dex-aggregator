@@ -228,9 +228,9 @@ func TestEstimateGas(t *testing.T) {
 		want uint64
 	}{
 		{"nil route", 0, 150000},
-		{"single hop", 1, 121000},   // 21000 + 100000
-		{"two hops", 2, 221000},     // 21000 + 200000
-		{"three hops", 3, 321000},   // 21000 + 300000
+		{"single hop", 1, 121000}, // 21000 + 100000
+		{"two hops", 2, 221000},   // 21000 + 200000
+		{"three hops", 3, 321000}, // 21000 + 300000
 	}
 
 	for _, tt := range tests {

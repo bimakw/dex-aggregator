@@ -65,20 +65,20 @@ func TestGetAmountOut(t *testing.T) {
 	token1 := common.HexToAddress("0x0000000000000000000000000000000000000002")
 
 	tests := []struct {
-		name      string
-		reserve0  *big.Int
-		reserve1  *big.Int
-		fee       uint64
-		amountIn  *big.Int
-		tokenIn   common.Address
-		wantGT    string // result should be greater than this
-		wantLT    string // result should be less than this
+		name     string
+		reserve0 *big.Int
+		reserve1 *big.Int
+		fee      uint64
+		amountIn *big.Int
+		tokenIn  common.Address
+		wantGT   string // result should be greater than this
+		wantLT   string // result should be less than this
 	}{
 		{
 			name:     "standard swap token0 to token1",
 			reserve0: new(big.Int).Mul(big.NewInt(10000), big.NewInt(1e18)), // 10000 tokens
 			reserve1: new(big.Int).Mul(big.NewInt(10000), big.NewInt(1e18)),
-			fee:      30, // 0.3%
+			fee:      30,               // 0.3%
 			amountIn: big.NewInt(1e18), // 1 token
 			tokenIn:  token0,
 			wantGT:   "990000000000000000",  // > 0.99 (fee impact)
@@ -121,7 +121,7 @@ func TestGetAmountOut(t *testing.T) {
 			fee:      5, // 0.05%
 			amountIn: big.NewInt(1e18),
 			tokenIn:  token0,
-			wantGT:   "995000000000000000",  // > 0.995 (lower fee = more output)
+			wantGT:   "995000000000000000", // > 0.995 (lower fee = more output)
 			wantLT:   "1000000000000000000",
 		},
 		{
@@ -131,7 +131,7 @@ func TestGetAmountOut(t *testing.T) {
 			fee:      100, // 1%
 			amountIn: big.NewInt(1e18),
 			tokenIn:  token0,
-			wantGT:   "980000000000000000",  // > 0.98 (higher fee = less output)
+			wantGT:   "980000000000000000", // > 0.98 (higher fee = less output)
 			wantLT:   "1000000000000000000",
 		},
 	}
