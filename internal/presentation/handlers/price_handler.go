@@ -12,13 +12,11 @@ import (
 	"github.com/bimakw/dex-aggregator/internal/domain/services"
 )
 
-// PriceHandler handles price requests
 type PriceHandler struct {
 	priceService  *services.PriceService
 	tokenRegistry map[common.Address]entities.Token
 }
 
-// NewPriceHandler creates a new price handler
 func NewPriceHandler(priceService *services.PriceService) *PriceHandler {
 	registry := map[common.Address]entities.Token{
 		entities.WETH.Address: entities.WETH,
@@ -33,7 +31,6 @@ func NewPriceHandler(priceService *services.PriceService) *PriceHandler {
 	}
 }
 
-// PriceResponse represents a price response
 type PriceResponse struct {
 	Token     string            `json:"token"`
 	Symbol    string            `json:"symbol"`
@@ -44,7 +41,6 @@ type PriceResponse struct {
 
 // GetPrice handles GET /api/v1/price/{tokenAddress}
 func (h *PriceHandler) GetPrice(w http.ResponseWriter, r *http.Request) {
-	// Extract token address from path
 	path := r.URL.Path
 	parts := strings.Split(path, "/")
 	if len(parts) < 4 {
@@ -88,7 +84,6 @@ func (h *PriceHandler) GetPrice(w http.ResponseWriter, r *http.Request) {
 
 // formatPrice formats a price with 18 decimals to a human-readable string
 func formatPrice(price interface{ String() string }) string {
-	// Simple formatting - in production you'd want proper decimal handling
 	priceStr := price.String()
 	if len(priceStr) <= 18 {
 		return "0." + strings.Repeat("0", 18-len(priceStr)) + priceStr

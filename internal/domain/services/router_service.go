@@ -15,27 +15,22 @@ const DefaultSlippageBps = 50
 // Price impact warning threshold in basis points (1%)
 const PriceImpactWarningThreshold = 100
 
-// RouterService handles route finding and quote generation
 type RouterService struct {
 	priceService *PriceService
 }
 
-// NewRouterService creates a new router service
 func NewRouterService(priceService *PriceService) *RouterService {
 	return &RouterService{
 		priceService: priceService,
 	}
 }
 
-// GetQuote finds the best route and returns a quote
 func (s *RouterService) GetQuote(ctx context.Context, tokenIn, tokenOut entities.Token, amountIn *big.Int) (*entities.Quote, error) {
-	// Get prices from all DEXes
 	prices, err := s.priceService.GetPrices(ctx, tokenIn, tokenOut, amountIn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get prices: %w", err)
 	}
 
-	// Find best direct route
 	var bestResult *PriceResult
 	sources := make(map[entities.DEXType]string)
 
@@ -58,10 +53,8 @@ func (s *RouterService) GetQuote(ctx context.Context, tokenIn, tokenOut entities
 		return nil, fmt.Errorf("no valid routes found")
 	}
 
-	// Build route
 	route := s.buildRoute(tokenIn, tokenOut, amountIn, bestResult)
 
-	// Calculate price impact
 	priceImpact := route.CalculatePriceImpact()
 
 	return &entities.Quote{
@@ -100,7 +93,6 @@ func estimateGas(route *entities.Route) uint64 {
 		return 150000 // Default single swap estimate
 	}
 
-	// Base gas + gas per hop
 	baseGas := uint64(21000)
 	gasPerHop := uint64(100000) // Approximate gas for a Uniswap V2 swap
 
@@ -109,10 +101,8 @@ func estimateGas(route *entities.Route) uint64 {
 
 // GetMultiHopQuote finds the best route including multi-hop paths (Phase 3)
 func (s *RouterService) GetMultiHopQuote(ctx context.Context, tokenIn, tokenOut entities.Token, amountIn *big.Int, intermediateTokens []entities.Token) (*entities.Quote, error) {
-	// First try direct route
 	directQuote, directErr := s.GetQuote(ctx, tokenIn, tokenOut, amountIn)
 
-	// Try multi-hop routes through intermediate tokens
 	var bestQuote *entities.Quote
 	if directErr == nil {
 		bestQuote = directQuote
@@ -123,7 +113,6 @@ func (s *RouterService) GetMultiHopQuote(ctx context.Context, tokenIn, tokenOut 
 			continue
 		}
 
-		// Get first hop: tokenIn -> intermediate
 		hop1Prices, err := s.priceService.GetPrices(ctx, tokenIn, intermediate, amountIn)
 		if err != nil {
 			continue
@@ -134,7 +123,6 @@ func (s *RouterService) GetMultiHopQuote(ctx context.Context, tokenIn, tokenOut 
 				continue
 			}
 
-			// Get second hop: intermediate -> tokenOut
 			hop2Prices, err := s.priceService.GetPrices(ctx, intermediate, tokenOut, hop1.AmountOut)
 			if err != nil {
 				continue
@@ -145,7 +133,6 @@ func (s *RouterService) GetMultiHopQuote(ctx context.Context, tokenIn, tokenOut 
 					continue
 				}
 
-				// Check if this multi-hop is better
 				if bestQuote == nil || hop2.AmountOut.Cmp(bestQuote.AmountOut) > 0 {
 					route := &entities.Route{
 						Hops: []entities.Hop{
@@ -182,13 +169,11 @@ func (s *RouterService) GetMultiHopQuote(ctx context.Context, tokenIn, tokenOut 
 	return bestQuote, nil
 }
 
-// GetSmartQuote finds the optimal route including split orders across multiple DEXes
 func (s *RouterService) GetSmartQuote(ctx context.Context, tokenIn, tokenOut entities.Token, amountIn *big.Int, slippageBps uint64) (*entities.Quote, error) {
 	if slippageBps == 0 {
 		slippageBps = DefaultSlippageBps
 	}
 
-	// Get prices from all DEXes
 	prices, err := s.priceService.GetPrices(ctx, tokenIn, tokenOut, amountIn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get prices: %w", err)
@@ -200,7 +185,6 @@ func (s *RouterService) GetSmartQuote(ctx context.Context, tokenIn, tokenOut ent
 		return nil, fmt.Errorf("no valid routes found")
 	}
 
-	// Try split order if we have multiple DEXes with liquidity
 	var quote *entities.Quote
 	if len(validPrices) >= 2 {
 		splitQuote := s.trySplitOrder(tokenIn, tokenOut, amountIn, validPrices)
@@ -209,7 +193,6 @@ func (s *RouterService) GetSmartQuote(ctx context.Context, tokenIn, tokenOut ent
 		}
 	}
 
-	// Fall back to best single route
 	if quote == nil {
 		bestResult := &validPrices[0]
 		route := s.buildRoute(tokenIn, tokenOut, amountIn, bestResult)
@@ -231,10 +214,8 @@ func (s *RouterService) GetSmartQuote(ctx context.Context, tokenIn, tokenOut ent
 		}
 	}
 
-	// Apply slippage protection
 	s.applySlippageProtection(quote, slippageBps)
 
-	// Add price impact warning
 	if quote.PriceImpact != nil && quote.PriceImpact.Cmp(big.NewInt(PriceImpactWarningThreshold)) > 0 {
 		impactPct := float64(quote.PriceImpact.Int64()) / 100.0
 		quote.PriceWarning = fmt.Sprintf("High price impact: %.2f%%", impactPct)
@@ -249,17 +230,14 @@ func (s *RouterService) trySplitOrder(tokenIn, tokenOut entities.Token, amountIn
 		return nil
 	}
 
-	// Sort prices by AmountOut descending
 	sort.Slice(prices, func(i, j int) bool {
 		return prices[i].AmountOut.Cmp(prices[j].AmountOut) > 0
 	})
 
-	// Try different split ratios
 	bestSplitOutput := big.NewInt(0)
 	var bestSplits []entities.SplitRoute
 	bestGas := uint64(0)
 
-	// Compare best single route
 	singleOutput := prices[0].AmountOut
 	singleGas := estimateGas(nil)
 
@@ -267,19 +245,16 @@ func (s *RouterService) trySplitOrder(tokenIn, tokenOut entities.Token, amountIn
 	splitRatios := [][]uint64{{50, 50}, {60, 40}, {70, 30}, {80, 20}}
 
 	for _, ratio := range splitRatios {
-		// Calculate split amounts
 		amount1 := new(big.Int).Mul(amountIn, big.NewInt(int64(ratio[0])))
 		amount1.Div(amount1, big.NewInt(100))
 		amount2 := new(big.Int).Sub(amountIn, amount1)
 
-		// Get output for each DEX with split amount
 		output1 := prices[0].Pair.GetAmountOut(amount1, tokenIn.Address)
 		output2 := prices[1].Pair.GetAmountOut(amount2, tokenIn.Address)
 
 		totalOutput := new(big.Int).Add(output1, output2)
 		totalGas := estimateGas(nil) * 2 // Two swaps
 
-		// Calculate net benefit considering gas
 		// For simplicity, compare raw output (gas optimization would need ETH price)
 		if totalOutput.Cmp(bestSplitOutput) > 0 {
 			bestSplitOutput = totalOutput
@@ -317,18 +292,15 @@ func (s *RouterService) trySplitOrder(tokenIn, tokenOut entities.Token, amountIn
 		}
 	}
 
-	// Only use split if it's better than single route
 	if bestSplitOutput.Cmp(singleOutput) <= 0 {
 		return nil
 	}
 
-	// Build quote with split routes
 	sources := make(map[entities.DEXType]string)
 	for _, p := range prices {
 		sources[p.DEX] = p.AmountOut.String()
 	}
 
-	// Best route is still the first DEX for reference
 	bestRoute := s.buildRoute(tokenIn, tokenOut, amountIn, &prices[0])
 
 	priceImpact := calculateSplitPriceImpact(bestSplits)
@@ -370,7 +342,6 @@ func filterValidPrices(prices []PriceResult) []PriceResult {
 		}
 	}
 
-	// Sort by AmountOut descending
 	sort.Slice(valid, func(i, j int) bool {
 		return valid[i].AmountOut.Cmp(valid[j].AmountOut) > 0
 	})

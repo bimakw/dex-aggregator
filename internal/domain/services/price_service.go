@@ -12,14 +12,12 @@ import (
 	"github.com/bimakw/dex-aggregator/internal/infrastructure/dex"
 )
 
-// PriceService handles price fetching and aggregation
 type PriceService struct {
 	dexClients []dex.DEXClient
 	cache      cache.Cache
 	cacheTTL   time.Duration
 }
 
-// NewPriceService creates a new price service
 func NewPriceService(dexClients []dex.DEXClient, c cache.Cache) *PriceService {
 	return &PriceService{
 		dexClients: dexClients,
@@ -36,7 +34,6 @@ type PriceResult struct {
 	Error     error
 }
 
-// GetPrices fetches prices from all DEXes for a token pair
 func (s *PriceService) GetPrices(ctx context.Context, tokenIn, tokenOut entities.Token, amountIn *big.Int) ([]PriceResult, error) {
 	results := make([]PriceResult, len(s.dexClients))
 	var wg sync.WaitGroup
@@ -48,7 +45,6 @@ func (s *PriceService) GetPrices(ctx context.Context, tokenIn, tokenOut entities
 
 			cacheKey := cache.PairCacheKey(c.DEXType(), tokenIn.Address.Hex(), tokenOut.Address.Hex())
 
-			// Try cache first
 			if s.cache != nil {
 				if cachedPair, err := s.cache.GetPair(ctx, cacheKey); err == nil && cachedPair != nil {
 					amountOut := cachedPair.GetAmountOut(amountIn, tokenIn.Address)
@@ -71,7 +67,6 @@ func (s *PriceService) GetPrices(ctx context.Context, tokenIn, tokenOut entities
 				return
 			}
 
-			// Cache the pair
 			if s.cache != nil {
 				_ = s.cache.SetPair(ctx, cacheKey, pair, s.cacheTTL)
 			}
@@ -89,7 +84,6 @@ func (s *PriceService) GetPrices(ctx context.Context, tokenIn, tokenOut entities
 	return results, nil
 }
 
-// GetBestPrice returns the best price among all DEXes
 func (s *PriceService) GetBestPrice(ctx context.Context, tokenIn, tokenOut entities.Token, amountIn *big.Int) (*PriceResult, error) {
 	prices, err := s.GetPrices(ctx, tokenIn, tokenOut, amountIn)
 	if err != nil {
@@ -118,7 +112,6 @@ func (s *PriceService) GetBestPrice(ctx context.Context, tokenIn, tokenOut entit
 
 // GetTokenPrice returns the price of a token in USD (using stablecoins as reference)
 func (s *PriceService) GetTokenPrice(ctx context.Context, token entities.Token) (*big.Int, error) {
-	// Use WETH as intermediate if needed, USDC as quote
 	if token.Address == entities.USDC.Address {
 		// USDC price is $1 (represented as 10^18 for 18 decimal precision)
 		return new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil), nil
@@ -128,20 +121,17 @@ func (s *PriceService) GetTokenPrice(ctx context.Context, token entities.Token) 
 	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(token.Decimals)), nil)
 	best, err := s.GetBestPrice(ctx, token, entities.USDC, oneToken)
 	if err == nil && best.AmountOut != nil && best.AmountOut.Sign() > 0 {
-		// Convert USDC (6 decimals) to 18 decimal precision
 		price := new(big.Int).Mul(best.AmountOut, new(big.Int).Exp(big.NewInt(10), big.NewInt(12), nil))
 		return price, nil
 	}
 
 	// Try via WETH
 	if token.Address != entities.WETH.Address {
-		// Get token -> WETH price
 		wethResult, err := s.GetBestPrice(ctx, token, entities.WETH, oneToken)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get price: %w", err)
 		}
 
-		// Get WETH -> USDC price
 		wethPrice, err := s.GetTokenPrice(ctx, entities.WETH)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get WETH price: %w", err)

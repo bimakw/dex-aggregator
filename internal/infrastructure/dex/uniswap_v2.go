@@ -25,13 +25,11 @@ var (
 	getPairSelector = common.Hex2Bytes("e6a43905")
 )
 
-// UniswapV2Factory addresses
 var (
 	UniswapV2FactoryAddress = common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
 	SushiswapFactoryAddress = common.HexToAddress("0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac")
 )
 
-// UniswapV2Client fetches pair data from Uniswap V2 compatible DEXes
 type UniswapV2Client struct {
 	ethClient *ethclient.Client
 	factory   common.Address
@@ -39,7 +37,6 @@ type UniswapV2Client struct {
 	fee       uint64 // Fee in basis points (30 = 0.3%)
 }
 
-// NewUniswapV2Client creates a new Uniswap V2 client
 func NewUniswapV2Client(ethClient *ethclient.Client) *UniswapV2Client {
 	return &UniswapV2Client{
 		ethClient: ethClient,
@@ -59,7 +56,6 @@ func NewSushiswapClient(ethClient *ethclient.Client) *UniswapV2Client {
 	}
 }
 
-// GetPairAddress returns the pair address for two tokens
 func (c *UniswapV2Client) GetPairAddress(ctx context.Context, tokenA, tokenB common.Address) (common.Address, error) {
 	// Sort tokens (Uniswap V2 convention)
 	token0, token1 := sortTokens(tokenA, tokenB)
@@ -86,7 +82,6 @@ func (c *UniswapV2Client) GetPairAddress(ctx context.Context, tokenA, tokenB com
 	return pairAddress, nil
 }
 
-// GetPair fetches pair data including reserves
 func (c *UniswapV2Client) GetPair(ctx context.Context, pairAddress common.Address, token0, token1 entities.Token) (*entities.Pair, error) {
 	reserves, err := c.getReserves(ctx, pairAddress)
 	if err != nil {
@@ -105,7 +100,6 @@ func (c *UniswapV2Client) GetPair(ctx context.Context, pairAddress common.Addres
 	}, nil
 }
 
-// GetPairByTokens fetches pair data by token addresses
 func (c *UniswapV2Client) GetPairByTokens(ctx context.Context, tokenA, tokenB entities.Token) (*entities.Pair, error) {
 	// Sort tokens to determine token0 and token1
 	var token0, token1 entities.Token
@@ -147,7 +141,6 @@ func (c *UniswapV2Client) getReserves(ctx context.Context, pairAddress common.Ad
 	return [2]*big.Int{reserve0, reserve1}, nil
 }
 
-// GetAmountOut calculates the output amount for a swap
 func (c *UniswapV2Client) GetAmountOut(ctx context.Context, amountIn *big.Int, tokenIn, tokenOut entities.Token) (*big.Int, error) {
 	pair, err := c.GetPairByTokens(ctx, tokenIn, tokenOut)
 	if err != nil {

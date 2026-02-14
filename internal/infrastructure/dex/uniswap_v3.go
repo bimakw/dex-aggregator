@@ -27,7 +27,6 @@ var V3FeeTiers = []uint32{
 	10000, // 1.00%
 }
 
-// Uniswap V3 ABI function selectors
 var (
 	// getPool(address,address,uint24) returns (address)
 	getPoolSelector = common.Hex2Bytes("1698ee82")
@@ -42,7 +41,6 @@ type UniswapV3Client struct {
 	quoter    common.Address
 }
 
-// NewUniswapV3Client creates a new Uniswap V3 client
 func NewUniswapV3Client(ethClient *ethclient.Client) *UniswapV3Client {
 	return &UniswapV3Client{
 		ethClient: ethClient,
@@ -51,12 +49,9 @@ func NewUniswapV3Client(ethClient *ethclient.Client) *UniswapV3Client {
 	}
 }
 
-// GetPairAddress returns the pool address for two tokens with the best liquidity
-// Tries all fee tiers and returns the first existing pool
 func (c *UniswapV3Client) GetPairAddress(ctx context.Context, tokenA, tokenB common.Address) (common.Address, error) {
 	token0, token1 := sortTokens(tokenA, tokenB)
 
-	// Try each fee tier to find an existing pool
 	for _, fee := range V3FeeTiers {
 		poolAddr, err := c.getPool(ctx, token0, token1, fee)
 		if err != nil {
@@ -97,14 +92,12 @@ func (c *UniswapV3Client) getPool(ctx context.Context, token0, token1 common.Add
 	return common.BytesToAddress(result[12:32]), nil
 }
 
-// GetPairByTokens returns a Pair struct with price info from the best fee tier
 func (c *UniswapV3Client) GetPairByTokens(ctx context.Context, tokenA, tokenB entities.Token) (*entities.Pair, error) {
 	token0, token1 := tokenA, tokenB
 	if tokenA.Address.Hex() > tokenB.Address.Hex() {
 		token0, token1 = tokenB, tokenA
 	}
 
-	// Find pool with best liquidity by checking each fee tier
 	var bestPool common.Address
 	var bestFee uint32
 
@@ -124,7 +117,6 @@ func (c *UniswapV3Client) GetPairByTokens(ctx context.Context, tokenA, tokenB en
 	}
 
 	// V3 doesn't use reserves like V2, but we create a Pair struct for compatibility
-	// The actual price calculation happens in GetAmountOut via Quoter
 	return &entities.Pair{
 		Address:   bestPool,
 		Token0:    token0,
@@ -137,13 +129,11 @@ func (c *UniswapV3Client) GetPairByTokens(ctx context.Context, tokenA, tokenB en
 	}, nil
 }
 
-// GetAmountOut calculates output amount using QuoterV2.quoteExactInputSingle
 func (c *UniswapV3Client) GetAmountOut(ctx context.Context, amountIn *big.Int, tokenIn, tokenOut entities.Token) (*big.Int, error) {
 	if amountIn == nil || amountIn.Sign() <= 0 {
 		return big.NewInt(0), nil
 	}
 
-	// Try each fee tier and return the best quote
 	var bestAmountOut *big.Int
 
 	for _, fee := range V3FeeTiers {
@@ -167,7 +157,6 @@ func (c *UniswapV3Client) GetAmountOut(ctx context.Context, amountIn *big.Int, t
 // quoteExactInputSingle calls QuoterV2 to get exact output amount
 // Struct params: (tokenIn, tokenOut, amountIn, fee, sqrtPriceLimitX96)
 func (c *UniswapV3Client) quoteExactInputSingle(ctx context.Context, tokenIn, tokenOut common.Address, amountIn *big.Int, fee uint32) (*big.Int, error) {
-	// Build calldata for quoteExactInputSingle
 	// QuoteExactInputSingleParams struct:
 	// - tokenIn (address): 32 bytes
 	// - tokenOut (address): 32 bytes
@@ -194,7 +183,6 @@ func (c *UniswapV3Client) quoteExactInputSingle(ctx context.Context, tokenIn, to
 	copy(data[100+32-len(feeBytes):100+32], feeBytes)
 
 	// sqrtPriceLimitX96 at offset 132 - set to 0 for no limit
-	// Already zero-initialized
 
 	result, err := c.ethClient.CallContract(ctx, ethereum.CallMsg{
 		To:   &c.quoter,

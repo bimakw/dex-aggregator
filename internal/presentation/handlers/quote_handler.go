@@ -11,15 +11,12 @@ import (
 	"github.com/bimakw/dex-aggregator/internal/domain/services"
 )
 
-// QuoteHandler handles quote requests
 type QuoteHandler struct {
 	routerService *services.RouterService
 	tokenRegistry map[common.Address]entities.Token
 }
 
-// NewQuoteHandler creates a new quote handler
 func NewQuoteHandler(routerService *services.RouterService) *QuoteHandler {
-	// Initialize token registry with common tokens
 	registry := map[common.Address]entities.Token{
 		entities.WETH.Address: entities.WETH,
 		entities.USDC.Address: entities.USDC,
@@ -33,14 +30,12 @@ func NewQuoteHandler(routerService *services.RouterService) *QuoteHandler {
 	}
 }
 
-// QuoteRequest represents a quote request
 type QuoteRequest struct {
 	TokenIn  string `json:"tokenIn"`
 	TokenOut string `json:"tokenOut"`
 	AmountIn string `json:"amountIn"`
 }
 
-// QuoteResponse represents a quote response
 type QuoteResponse struct {
 	TokenIn      string            `json:"tokenIn"`
 	TokenOut     string            `json:"tokenOut"`
@@ -56,7 +51,6 @@ type QuoteResponse struct {
 	Sources      map[string]string `json:"sources"`
 }
 
-// SplitRouteResp represents a split route in the response
 type SplitRouteResp struct {
 	DEX        string `json:"dex"`
 	Percentage uint64 `json:"percentage"`
@@ -64,7 +58,6 @@ type SplitRouteResp struct {
 	AmountOut  string `json:"amountOut"`
 }
 
-// RouteHop represents a hop in the route
 type RouteHop struct {
 	DEX      string `json:"dex"`
 	Pair     string `json:"pair"`
@@ -73,15 +66,12 @@ type RouteHop struct {
 	Fee      uint64 `json:"fee"`
 }
 
-// ErrorResponse represents an error response
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
 }
 
-// GetQuote handles GET /api/v1/quote
 func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
 	tokenInAddr := r.URL.Query().Get("tokenIn")
 	tokenOutAddr := r.URL.Query().Get("tokenOut")
 	amountInStr := r.URL.Query().Get("amountIn")
@@ -92,7 +82,6 @@ func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate addresses
 	if !common.IsHexAddress(tokenInAddr) {
 		h.writeError(w, http.StatusBadRequest, "invalid_token_in", "tokenIn is not a valid address")
 		return
@@ -102,7 +91,6 @@ func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse amount
 	amountIn, ok := new(big.Int).SetString(amountInStr, 10)
 	if !ok || amountIn.Sign() <= 0 {
 		h.writeError(w, http.StatusBadRequest, "invalid_amount", "amountIn must be a positive integer")
@@ -120,10 +108,8 @@ func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
 		slippageBps = slippage.Uint64()
 	}
 
-	// Look up tokens
 	tokenIn, ok := h.tokenRegistry[common.HexToAddress(tokenInAddr)]
 	if !ok {
-		// Create generic token if not in registry
 		tokenIn = entities.Token{
 			Address:  common.HexToAddress(tokenInAddr),
 			Symbol:   "UNKNOWN",
@@ -140,14 +126,12 @@ func (h *QuoteHandler) GetQuote(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get smart quote with slippage protection
 	quote, err := h.routerService.GetSmartQuote(r.Context(), tokenIn, tokenOut, amountIn, slippageBps)
 	if err != nil {
 		h.writeError(w, http.StatusNotFound, "no_route", err.Error())
 		return
 	}
 
-	// Build response
 	response := h.buildQuoteResponse(quote)
 	h.writeJSON(w, http.StatusOK, response)
 }
@@ -182,7 +166,6 @@ func (h *QuoteHandler) buildQuoteResponse(quote *entities.Quote) QuoteResponse {
 		minAmountOut = quote.MinAmountOut.String()
 	}
 
-	// Build split routes response
 	var splitRoutes []SplitRouteResp
 	for _, sr := range quote.SplitRoutes {
 		dexType := ""

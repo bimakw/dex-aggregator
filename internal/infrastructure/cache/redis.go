@@ -11,7 +11,6 @@ import (
 	"github.com/bimakw/dex-aggregator/internal/domain/entities"
 )
 
-// Cache defines the interface for caching operations
 type Cache interface {
 	GetPair(ctx context.Context, key string) (*entities.Pair, error)
 	SetPair(ctx context.Context, key string, pair *entities.Pair, ttl time.Duration) error
@@ -20,12 +19,10 @@ type Cache interface {
 	Delete(ctx context.Context, key string) error
 }
 
-// RedisCache implements Cache using Redis
 type RedisCache struct {
 	client *redis.Client
 }
 
-// NewRedisCache creates a new Redis cache client
 func NewRedisCache(addr, password string, db int) (*RedisCache, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
@@ -43,12 +40,10 @@ func NewRedisCache(addr, password string, db int) (*RedisCache, error) {
 	return &RedisCache{client: client}, nil
 }
 
-// Close closes the Redis connection
 func (c *RedisCache) Close() error {
 	return c.client.Close()
 }
 
-// GetPair retrieves a cached pair
 func (c *RedisCache) GetPair(ctx context.Context, key string) (*entities.Pair, error) {
 	data, err := c.client.Get(ctx, key).Bytes()
 	if err != nil {
@@ -76,7 +71,6 @@ func (c *RedisCache) SetPair(ctx context.Context, key string, pair *entities.Pai
 	return c.client.Set(ctx, key, data, ttl).Err()
 }
 
-// GetPrice retrieves a cached price
 func (c *RedisCache) GetPrice(ctx context.Context, key string) (string, error) {
 	price, err := c.client.Get(ctx, key).Result()
 	if err != nil {
@@ -93,17 +87,14 @@ func (c *RedisCache) SetPrice(ctx context.Context, key string, price string, ttl
 	return c.client.Set(ctx, key, price, ttl).Err()
 }
 
-// Delete removes a key from cache
 func (c *RedisCache) Delete(ctx context.Context, key string) error {
 	return c.client.Del(ctx, key).Err()
 }
 
-// PairCacheKey generates a cache key for a pair
 func PairCacheKey(dex entities.DEXType, token0, token1 string) string {
 	return fmt.Sprintf("pair:%s:%s:%s", dex, token0, token1)
 }
 
-// PriceCacheKey generates a cache key for a price
 func PriceCacheKey(token string) string {
 	return fmt.Sprintf("price:%s", token)
 }
@@ -124,7 +115,6 @@ type cachedPrice struct {
 	expiresAt time.Time
 }
 
-// NewInMemoryCache creates a new in-memory cache
 func NewInMemoryCache() *InMemoryCache {
 	return &InMemoryCache{
 		pairs:  make(map[string]*cachedPair),

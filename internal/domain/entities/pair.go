@@ -30,21 +30,16 @@ type Pair struct {
 }
 
 // GetSpotPrice calculates the spot price of token0 in terms of token1
-// Returns price with 18 decimals precision
 func (p *Pair) GetSpotPrice() *big.Int {
 	if p.Reserve0 == nil || p.Reserve1 == nil || p.Reserve0.Sign() == 0 {
 		return big.NewInt(0)
 	}
 
-	// Price = Reserve1 / Reserve0, scaled by 10^18 for precision
 	precision := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 	numerator := new(big.Int).Mul(p.Reserve1, precision)
 	return new(big.Int).Div(numerator, p.Reserve0)
 }
 
-// GetAmountOut calculates the output amount for a given input amount
-// Uses the constant product formula: (x + dx) * (y - dy) = x * y
-// With fee deduction applied to the input
 func (p *Pair) GetAmountOut(amountIn *big.Int, tokenIn common.Address) *big.Int {
 	if amountIn == nil || amountIn.Sign() <= 0 {
 		return big.NewInt(0)

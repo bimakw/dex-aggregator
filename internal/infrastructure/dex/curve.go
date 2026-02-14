@@ -13,7 +13,6 @@ import (
 	ethclient "github.com/bimakw/dex-aggregator/internal/infrastructure/ethereum"
 )
 
-// Curve pool function selectors
 var (
 	// get_dy(int128 i, int128 j, uint256 dx) returns (uint256)
 	getDySelector = common.Hex2Bytes("5e0d443f")
@@ -33,14 +32,12 @@ var (
 	CurveStETHAddress = common.HexToAddress("0xDC24316b9AE028F1497c275EB9192a3Ea0f67022")
 )
 
-// CurvePool represents a Curve pool configuration
 type CurvePool struct {
 	Address common.Address
 	Coins   []common.Address
 	Name    string
 }
 
-// Known Curve pools
 var curvePools = []CurvePool{
 	{
 		Address: Curve3PoolAddress,
@@ -53,13 +50,11 @@ var curvePools = []CurvePool{
 	},
 }
 
-// CurveClient fetches price data from Curve Finance pools
 type CurveClient struct {
 	ethClient *ethclient.Client
 	pools     []CurvePool
 }
 
-// NewCurveClient creates a new Curve Finance client
 func NewCurveClient(ethClient *ethclient.Client) *CurveClient {
 	return &CurveClient{
 		ethClient: ethClient,
@@ -67,7 +62,6 @@ func NewCurveClient(ethClient *ethclient.Client) *CurveClient {
 	}
 }
 
-// GetPairAddress returns the pool address for two tokens
 func (c *CurveClient) GetPairAddress(ctx context.Context, tokenA, tokenB common.Address) (common.Address, error) {
 	for _, pool := range c.pools {
 		hasA, hasB := false, false
@@ -86,14 +80,12 @@ func (c *CurveClient) GetPairAddress(ctx context.Context, tokenA, tokenB common.
 	return common.Address{}, fmt.Errorf("no Curve pool found for token pair")
 }
 
-// GetPairByTokens fetches pool data by token addresses
 func (c *CurveClient) GetPairByTokens(ctx context.Context, tokenA, tokenB entities.Token) (*entities.Pair, error) {
 	poolAddress, err := c.GetPairAddress(ctx, tokenA.Address, tokenB.Address)
 	if err != nil {
 		return nil, err
 	}
 
-	// Find the pool configuration
 	var pool *CurvePool
 	for i := range c.pools {
 		if c.pools[i].Address == poolAddress {
@@ -105,7 +97,6 @@ func (c *CurveClient) GetPairByTokens(ctx context.Context, tokenA, tokenB entiti
 		return nil, fmt.Errorf("pool configuration not found")
 	}
 
-	// Get token indices in the pool
 	idxA, idxB := -1, -1
 	for i, coin := range pool.Coins {
 		if coin == tokenA.Address {
@@ -119,7 +110,6 @@ func (c *CurveClient) GetPairByTokens(ctx context.Context, tokenA, tokenB entiti
 		return nil, fmt.Errorf("token not found in pool")
 	}
 
-	// Get balances for both tokens
 	balanceA, err := c.getBalance(ctx, poolAddress, idxA)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get balance A: %w", err)
@@ -132,11 +122,9 @@ func (c *CurveClient) GetPairByTokens(ctx context.Context, tokenA, tokenB entiti
 	// Get fee (Curve uses 1e10 format, we want basis points)
 	fee, err := c.getFee(ctx, poolAddress)
 	if err != nil {
-		// Default to 0.04% for stablecoin pools
 		fee = 4
 	}
 
-	// Sort tokens for consistent ordering
 	var token0, token1 entities.Token
 	var reserve0, reserve1 *big.Int
 	if tokenA.Address.Hex() < tokenB.Address.Hex() {
@@ -159,14 +147,12 @@ func (c *CurveClient) GetPairByTokens(ctx context.Context, tokenA, tokenB entiti
 	}, nil
 }
 
-// GetAmountOut calculates the output amount for a swap using get_dy
 func (c *CurveClient) GetAmountOut(ctx context.Context, amountIn *big.Int, tokenIn, tokenOut entities.Token) (*big.Int, error) {
 	poolAddress, err := c.GetPairAddress(ctx, tokenIn.Address, tokenOut.Address)
 	if err != nil {
 		return nil, err
 	}
 
-	// Find pool and token indices
 	var pool *CurvePool
 	for i := range c.pools {
 		if c.pools[i].Address == poolAddress {

@@ -2,7 +2,6 @@ package entities
 
 import "github.com/ethereum/go-ethereum/common"
 
-// Token represents an ERC20 token
 type Token struct {
 	Address  common.Address `json:"address"`
 	Symbol   string         `json:"symbol"`

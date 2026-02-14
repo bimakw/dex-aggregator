@@ -6,14 +6,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// Hop represents a single swap step in a route
 type Hop struct {
 	Pair     Pair           `json:"pair"`
 	TokenIn  common.Address `json:"tokenIn"`
 	TokenOut common.Address `json:"tokenOut"`
 }
 
-// Route represents a swap path from tokenIn to tokenOut
 type Route struct {
 	Hops        []Hop    `json:"hops"`
 	TokenIn     Token    `json:"tokenIn"`
@@ -24,7 +22,6 @@ type Route struct {
 	GasEstimate uint64   `json:"gasEstimate"`
 }
 
-// Quote represents the result of a price quote request
 type Quote struct {
 	TokenIn      Token              `json:"tokenIn"`
 	TokenOut     Token              `json:"tokenOut"`
@@ -48,7 +45,6 @@ type SplitRoute struct {
 	AmountOut  *big.Int `json:"amountOut"`
 }
 
-// CalculateAmountOut calculates the final output amount for the entire route
 func (r *Route) CalculateAmountOut() *big.Int {
 	if len(r.Hops) == 0 || r.AmountIn == nil {
 		return big.NewInt(0)
@@ -65,7 +61,6 @@ func (r *Route) CalculateAmountOut() *big.Int {
 	return currentAmount
 }
 
-// CalculatePriceImpact calculates the price impact in basis points
 // Price impact = (spotPrice - executionPrice) / spotPrice * 10000
 func (r *Route) CalculatePriceImpact() *big.Int {
 	if len(r.Hops) == 0 || r.AmountIn == nil || r.AmountIn.Sign() == 0 {
@@ -99,7 +94,6 @@ func (r *Route) calculateSpotAmount() *big.Int {
 		return big.NewInt(0)
 	}
 
-	// For spot price calculation, we simulate with a very small amount
 	// and scale up proportionally
 	testAmount := big.NewInt(1e15) // 0.001 tokens with 18 decimals
 	testOutput := new(big.Int).Set(testAmount)
@@ -111,7 +105,6 @@ func (r *Route) calculateSpotAmount() *big.Int {
 		}
 	}
 
-	// Scale up: spotAmount = (amountIn * testOutput) / testAmount
 	scaled := new(big.Int).Mul(r.AmountIn, testOutput)
 	return new(big.Int).Div(scaled, testAmount)
 }
